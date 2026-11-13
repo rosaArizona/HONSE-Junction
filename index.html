@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spread console</title>
+<style>
+:root{--bg:#f4f6f9;--panel:#fff;--ink:#1c2230;--mute:#6b7385;--line:#e1e5ec;--acc:#2563eb;--accbg:#e8f0fe;--good:#15803d;--bad:#dc2626;--warn:#b45309;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1218;--panel:#171c26;--ink:#e6e9f0;--mute:#8b93a7;--line:#262d3b;--acc:#60a5fa;--accbg:#1b2a44;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+input[type=number]{width:84px}
+textarea{width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header h1{font-size:15px;margin:0 8px 0 0}
+.sp{flex:1}
+.pill{padding:2px 8px;border-radius:99px;background:var(--accbg);color:var(--acc);font-size:12px}
+.pill.bad{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+.mute{color:var(--mute)}.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+#score{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;padding:8px 12px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.stat small{display:block;color:var(--mute)}.stat b{font-size:16px}
+main{display:grid;grid-template-columns:minmax(360px,5fr) 7fr;gap:10px;padding:0 12px 16px}
+@media(max-width:980px){main{grid-template-columns:1fr}}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px}
+.box h3{margin:0 0 6px;font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
+#clock{font-size:20px;font-weight:600}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:6px 0}
+.bar i{display:block;height:100%;background:var(--acc)}
+#map{width:100%;height:auto;background:var(--bg);border-radius:6px;display:block}
+#map text{font-size:7px;fill:var(--mute);pointer-events:none}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.tab{display:none}.tab.on{display:block}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:3px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:500;position:sticky;top:0;background:var(--panel)}
+.scroll{max-height:68vh;overflow:auto}
+.card{border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:8px}
+.tag{background:var(--accbg);color:var(--acc);border-radius:4px;padding:0 6px;font-size:12px}
+.note{background:rgba(217,119,6,.12);border-radius:6px;padding:4px 8px;margin:4px 0}
+.leg{margin:2px 0}
+.ev{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word;border-bottom:1px solid var(--line);padding:2px 0}
+.ev b{display:inline-block;min-width:116px}
+pre{background:var(--bg);border-radius:6px;padding:8px;overflow:auto;max-height:260px;font-size:12px;margin:6px 0}
+#toast{position:fixed;right:14px;bottom:14px;max-width:420px;background:var(--ink);color:var(--bg);padding:8px 12px;border-radius:8px;display:none;z-index:9;white-space:pre-wrap}
+#banner{background:rgba(220,38,38,.12);color:var(--bad);padding:8px 12px;display:none}
+label.ck{display:inline-flex;gap:4px;align-items:center}
+</style>
+</head>
+<body>
+<div id="banner"></div>
+<header>
+  <h1>Spread console</h1>
+  <select id="worldSel" title="Your worlds"></select>
+  <button id="bRefresh" title="Reload the selected world">⟳</button>
+  <span class="pill" id="st">not connected</span>
+  <span class="mute" id="rate"></span>
+  <span class="sp"></span>
+  <span class="mute">New world:</span>
+  <select id="nwLevel"></select>
+  <input id="nwSeed" placeholder="seed (optional)" size="14">
+  <label class="ck" title="Your next official ranking run: seed chosen by the server, no fork or reveal"><input type="checkbox" id="nwBoard">ranking run</label>
+  <button id="bCreate" class="pri">Create</button>
+  <button id="bFork">Fork</button>
+  <button id="bDelete">Delete</button>
+  <button id="bReveal">Reveal</button>
+</header>
+
+<div id="score"></div>
+
+<main>
+<section>
+  <div class="box">
+    <div class="row"><span id="clock">—</span><span class="sp"></span><span class="mute" id="clockSub"></span></div>
+    <div class="bar"><i id="prog" style="width:0"></i></div>
+    <div class="row">
+      <button data-act="adv" data-by="15">+15 min</button>
+      <button data-act="adv" data-by="60">+1 h</button>
+      <button data-act="adv" data-by="240">+4 h</button>
+      <button data-act="adv" data-by="1440">+1 day</button>
+      <button data-act="advEvt" data-k="price_request">Next price request</button>
+      <button data-act="advEvt" data-k="attn">Next needs-attention</button>
+      <button data-act="advEnd">To end</button>
+    </div>
+    <div class="row mute">“Needs attention” = price_request, order_won, deadline_close, gig_dropped, gig_expired, no_show, driver_late, visit_failed, order_changed, order_cancelled.</div>
+  </div>
+
+  <div class="box">
+    <h3>Autopilot <span class="mute">(a tiny starter-like bot, to see the machinery move; real strategy is yours)</span></h3>
+    <div class="row">
+      <label class="ck"><input type="checkbox" id="apQuote" checked>quote at list ×</label>
+      <input id="apMult" type="number" step="0.01" value="1.00" style="width:64px">
+      <label class="ck"><input type="checkbox" id="apSkipNote">decline requests with notes</label>
+    </div>
+    <div class="row">
+      <label class="ck"><input type="checkbox" id="apPost" checked>post gigs at typical fee, ramp +10%/h up to ×</label>
+      <input id="apRamp" type="number" step="0.1" value="1.5" style="width:56px">
+      <label class="ck"><input type="checkbox" id="apBump" checked>bump fee on deadline_close / re-post expired</label>
+    </div>
+    <div class="row">
+      <span class="mute">Max step (min)</span><input id="apStep" type="number" value="120" style="width:64px">
+      <button id="apGo" class="pri">▶ Run autopilot</button>
+      <span class="mute" id="apInfo"></span>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="row"><h3 style="margin:0">Map</h3><span class="sp"></span>
+      <label class="ck"><input type="checkbox" id="mpHomes" checked>driver homes</label>
+      <label class="ck"><input type="checkbox" id="mpLabels" checked>names</label></div>
+    <svg id="map" viewBox="0 0 400 520"></svg>
+    <div class="mute" style="margin-top:4px">Grey circles: where drivers live (size = count). Red/orange/blue lines: your orders waiting / booked / moving. Dashed: open price requests. Green dots: drivers on your gigs.</div>
+  </div>
+</section>
+
+<section>
+  <div class="tabs" id="tabs">
+    <button data-tab="req" class="on">Requests</button>
+    <button data-tab="ord">Orders</button>
+    <button data-tab="gig">Gigs</button>
+    <button data-tab="drv">Drivers</button>
+    <button data-tab="evt">Events</button>
+    <button data-tab="mon">Money</button>
+    <button data-tab="board">Rankings</button>
+    <button data-tab="con">Console</button>
+  </div>
+  <div class="box">
+    <div class="tab on" id="tab-req"></div>
+    <div class="tab" id="tab-ord"></div>
+    <div class="tab" id="tab-gig"></div>
+    <div class="tab" id="tab-drv"></div>
+    <div class="tab" id="tab-evt"></div>
+    <div class="tab" id="tab-mon"></div>
+    <div class="tab" id="tab-board"></div>
+    <div class="tab" id="tab-con"></div>
+  </div>
+</section>
+</main>
+<div id="toast"></div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const fmtT=m=>{const d=Math.floor(m/1440),r=m%1440;return DAYS[d%7]+(d>=7?'*':'')+' '+String(Math.floor(r/60)).padStart(2,'0')+':'+String(r%60).padStart(2,'0')};
+const eur=c=>(c<0?'-':'')+'€'+(Math.abs(c)/100).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+const ATTN=['price_request','order_won','deadline_close','gig_dropped','gig_expired','no_show','driver_late','visit_failed','order_changed','order_cancelled'];
+const S={wid:null,worlds:[],snap:null,events:[],seen:new Set(),reqs:{},map:null,pl:{},drivers:[],auto:false,reqLog:[],posted:new Set(),composer:null};
+
+/* ---------- helpers ---------- */
+function toast(m,ms=4500){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',ms)}
+const pn=id=>(S.pl[id]&&S.pl[id].name)||id;
+const routeOf=legs=>legs.map(l=>pn(l.pickup.placeId)+' → '+pn(l.delivery.placeId)).join(' + ');
+const ended=()=>S.snap&&S.snap.now>=S.snap.endsAt;
+async function api(method,path,body){
+  const t0=performance.now();
+  let r,txt;
+  try{r=await fetch('/api'+path,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});txt=await r.text()}
+  catch(e){throw new Error('Cannot reach the local server (is server.py running?)')}
+  const rem=r.headers.get('RateLimit-Remaining'),lim=r.headers.get('RateLimit-Limit');
+  if(rem!==null)$('#rate').textContent='tokens '+rem+' · '+lim+'/s';
+  let data=null;if(txt){try{data=JSON.parse(txt)}catch(e){data=txt}}
+  S.reqLog.unshift({t:new Date().toLocaleTimeString(),method,path,status:r.status,ms:Math.round(performance.now()-t0)});S.reqLog.length=Math.min(S.reqLog.length,60);
+  if(!r.ok){const e=new Error((data&&data.error)?data.error+(data.field?' ['+data.field+']':''):r.status+' '+r.statusText);e.status=r.status;throw e}
+  return data;
+}
+const wapi=(m,p,b)=>api(m,'/v1/worlds/'+S.wid+p,b);
+
+/* ---------- loading ---------- */
+async function init(){
+  for(let l=1;l<=8;l++)$('#nwLevel').insertAdjacentHTML('beforeend','<option value="'+l+'"'+(l===8?' selected':'')+'>Level '+l+'</option>');
+  try{const c=await (await fetch('/config')).json();
+    if(!c.hasKey){const b=$('#banner');b.style.display='block';b.textContent='SPREAD_KEY is not set. Stop server.py, run: export SPREAD_KEY=<your team key> (get one at '+c.base+'/join) and start it again.'}}
+  catch(e){}
+  try{const m=await api('GET','/v1/map');S.map=m;m.places.forEach(p=>S.pl[p.id]=p)}catch(e){toast('Map: '+e.message)}
+  await loadWorlds();
+}
+async function loadWorlds(select){
+  try{
+    S.worlds=await api('GET','/v1/worlds');
+    $('#st').textContent='connected';$('#st').classList.remove('bad');
+  }catch(e){$('#st').textContent=e.status===401?'bad key':'offline';$('#st').classList.add('bad');toast(e.message);return}
+  const sel=$('#worldSel');
+  sel.innerHTML=S.worlds.map(w=>'<option value="'+esc(w.worldId)+'">'+esc(w.worldId.slice(0,10))+' · L'+w.level+' · '+w.kind+(w.boardRun?' · ranking #'+w.boardRun:'')+(w.parent?' · fork':'')+(w.ended?' · ended':'')+'</option>').join('')||'<option value="">no worlds yet</option>';
+  const want=select||S.wid||(S.worlds.find(w=>!w.ended)||S.worlds[S.worlds.length-1]||{}).worldId;
+  if(want){sel.value=want;if(want!==S.wid||select)await loadWorld(want)}else renderAll();
+}
+async function loadWorld(id){
+  S.wid=id;S.events=[];S.seen=new Set();S.reqs={};S.posted=new Set();S.drivers=[];S.snap=null;
+  try{
+    await refreshEvents(true);
+    await refreshSnap();
+    wapi('GET','/drivers').then(d=>{S.drivers=d;renderMap();renderDrivers()}).catch(()=>{});
+  }catch(e){toast(e.message)}
+  renderAll();
+}
+async function refreshSnap(){S.snap=await wapi('GET','');S.snap.openRequests.forEach(r=>S.reqs[r.id]=r)}
+async function refreshEvents(all){
+  const last=all||!S.events.length?-1:S.events[S.events.length-1].seq;
+  ingest(await wapi('GET','/events?after='+last));
+}
+function ingest(evs){
+  for(const e of evs||[]){if(S.seen.has(e.seq))continue;S.seen.add(e.seq);S.events.push(e);if(e.kind==='price_request')S.reqs[e.request.id]=e.request}
+  S.events.sort((a,b)=>a.seq-b.seq);
+}
+async function reload(){if(!S.wid)return;await refreshEvents(false);await refreshSnap();renderAll()}
+
+/* ---------- clock ---------- */
+async function advance(body,actions){
+  const b=Object.assign({},body);if(actions&&actions.length)b.actions=actions;
+  const r=await wapi('POST','/advance',b);
+  ingest(r.events);
+  return r;
+}
+async function step(body){
+  if(!S.wid||ended())return;
+  try{const r=await advance(body);await refreshSnap();renderAll();return r}catch(e){toast(e.message)}
+}
+async function sendActions(acts){
+  const out=[];
+  for(let i=0;i<acts.length;i+=50){const part=acts.slice(i,i+50);const res=await wapi('POST','/actions',part);out.push(...res);
+    res.forEach((x,j)=>{if(!x.ok)toast('Action '+part[j].type+' refused: '+x.reason,7000)})}
+  return out;
+}
+async function act(acts){
+  try{const res=await sendActions(acts);await refreshEvents(false);await refreshSnap();renderAll();return res}catch(e){toast(e.message,7000)}
+}
+
+/* ---------- gig building ---------- */
+function refFee(order){
+  if(S.reqs[order.id])return S.reqs[order.id].referenceFeeCents;
+  const key=o=>o.dealerId+'|'+o.legs.map(l=>l.pickup.placeId+'>'+l.delivery.placeId).join(',');
+  const k=key(order);let best=null;
+  for(const r of Object.values(S.reqs)){if(key(r)===k&&(!best||r.arrivedAt>best.arrivedAt))best=r}
+  return best?best.referenceFeeCents:Math.round(order.priceCents*0.55);
+}
+function ramp(base,fromAt,maxMult,stepFrac,stepMin,startMult){
+  startMult=startMult||1;
+  const out=[];let prev=0;
+  for(let k=0;k<48;k++){
+    const mult=Math.min(maxMult,startMult+stepFrac*k);
+    const fee=Math.max(prev,Math.round(base*mult));prev=fee;
+    out.push({at:fromAt+k*stepMin,feeCents:fee});
+    if(mult>=maxMult)break;
+  }
+  return out;
+}
+function buildGigs(order,o){
+  const legs=order.legs.map((l,i)=>i).filter(i=>order.deliveredAt[i]==null);
+  const audience={experienced:!!o.experienced,manualLicence:!!o.manual};
+  const mk=idxs=>({type:'post',stops:idxs.flatMap(i=>[{orderId:order.id,leg:i,kind:'pickup',...(o.plates?{withPlates:true}:{})},{orderId:order.id,leg:i,kind:'delivery'}]),audience,schedule:o.schedule});
+  if(o.combine&&legs.length>1)return [mk(legs)];
+  return legs.map(i=>mk([i]));
+}
+
+/* ---------- autopilot ---------- */
+function autopilot(events){
+  const acts=[];const now=S.snap?S.snap.now:0;
+  const cfg={q:$('#apQuote').checked,m:parseFloat($('#apMult').value)||1,skip:$('#apSkipNote').checked,post:$('#apPost').checked,ramp:parseFloat($('#apRamp').value)||1.5,bump:$('#apBump').checked};
+  for(const e of events){
+    if(e.kind==='price_request'&&cfg.q){
+      const r=e.request,prices={};
+      const decline=cfg.skip&&r.note;
+      for(const o of r.options)prices[o.kind]=Math.max(1,Math.round(o.listPriceCents*(decline?3:cfg.m)));
+      acts.push({type:'quote',requestId:r.id,prices});
+    }
+    if(e.kind==='order_won'&&cfg.post){
+      const o=e.order,base=refFee(o);
+      const sched=ramp(base,e.at,cfg.ramp,0.10,60);
+      for(const g of buildGigs(o,{schedule:sched}))acts.push(g);
+      o.legs.forEach((l,i)=>S.posted.add(o.id+'/'+i));
+    }
+    if(cfg.bump&&e.kind==='deadline_close'){
+      const o=S.snap.orders.find(x=>x.id===e.orderId);if(!o)continue;
+      const base=refFee(o);
+      for(const g of S.snap.gigs.filter(g=>g.status==='open'&&g.stops.some(s=>s.orderId===o.id)))
+        acts.push({type:'reprice',gigId:g.id,schedule:ramp(base,e.at,2.5,0.25,30,1.5)});
+    }
+    if(cfg.bump&&e.kind==='gig_expired'){
+      const g=S.snap.gigs.find(x=>x.id===e.gigId);if(!g)continue;
+      const oid=g.stops[0].orderId,o=S.snap.orders.find(x=>x.id===oid);if(!o||o.status==='cancelled')continue;
+      const legsOf=[...new Set(g.stops.map(s=>s.leg))].filter(i=>o.deliveredAt[i]==null);
+      if(!legsOf.length)continue;
+      const sched=ramp(refFee(o),e.at,2.5,0.25,30,1.5);
+      acts.push({type:'post',stops:legsOf.flatMap(i=>[{orderId:oid,leg:i,kind:'pickup'},{orderId:oid,leg:i,kind:'delivery'}]),audience:g.audience,schedule:sched});
+    }
+  }
+  return acts;
+}
+async function autoLoop(){
+  if(S.auto){S.auto=false;$('#apGo').textContent='▶ Run autopilot';return}
+  if(!S.wid||ended())return;
+  S.auto=true;$('#apGo').textContent='⏸ Stop';
+  let n=0;
+  try{
+    while(S.auto&&!ended()){
+      const now=S.snap.now,end=S.snap.endsAt;
+      const max=Math.min(end,now+Math.max(5,parseInt($('#apStep').value)||120));
+      const r=await advance({untilEvent:ATTN,max});
+      // refresh the snapshot first when the handlers need current gigs/orders
+      await refreshSnap();
+      const acts=autopilot(r.events);
+      if(acts.length){await sendActions(acts);await refreshEvents(false);await refreshSnap()}
+      n++;$('#apInfo').textContent='steps '+n+' · '+fmtT(S.snap.now);
+      if(n%3===0||ended())renderAll();else{renderHead();}
+    }
+  }catch(e){toast(e.message,8000)}
+  S.auto=false;$('#apGo').textContent='▶ Run autopilot';renderAll();
+}
+
+/* ---------- rendering ---------- */
+function renderAll(){renderHead();renderMap();renderReq();renderOrders();renderGigs();renderDrivers();renderEvents();renderMoney();renderConsole()}
+function renderHead(){
+  const s=S.snap;
+  if(!s){$('#clock').textContent='—';$('#score').innerHTML='<div class="stat mute">Create or select a world to begin.</div>';return}
+  $('#clock').textContent=fmtT(s.now);
+  $('#clockSub').textContent=(ended()?'world ended':'ends '+fmtT(s.endsAt))+' · minute '+s.now+'/'+s.endsAt;
+  $('#prog').style.width=(100*s.now/s.endsAt)+'%';
+  const sc=s.score,cls=sc.marginCents>=0?'good':'bad';
+  const st=(l,v,c)=>'<div class="stat"><small>'+l+'</small><b class="'+(c||'')+'">'+v+'</b></div>';
+  $('#score').innerHTML=st('Margin',eur(sc.marginCents),cls)+st('Revenue',eur(sc.revenueCents))+st('Orders won',sc.wonOrders)
+   +st('On time',(sc.onTimeShare*100).toFixed(1)+'%',sc.onTimeShare>=0.9?'good':'bad')+st('Undelivered',(sc.undeliveredShare*100).toFixed(1)+'%')
+   +st('Ranked?',sc.ranked?'yes':'not yet (needs ≥90% on time)',sc.ranked?'good':'warn');
+}
+function renderMap(){
+  const svg=$('#map');if(!S.map){svg.innerHTML='';return}
+  const P=S.map.places,la0=P.reduce((a,p)=>a+p.lat,0)/P.length,k=Math.cos(la0*Math.PI/180);
+  const xs=P.map(p=>p.lon*k),ys=P.map(p=>-p.lat),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+  const sc=Math.min(370/(x1-x0||1),490/(y1-y0||1));
+  const X=p=>15+(p.lon*k-x0)*sc,Y=p=>15+(-p.lat-y0)*sc;
+  let h='';
+  const line=(a,b,col,dash,w)=>{const A=S.pl[a],B=S.pl[b];if(A&&B&&a!==b)h+='<line x1="'+X(A)+'" y1="'+Y(A)+'" x2="'+X(B)+'" y2="'+Y(B)+'" stroke="'+col+'" stroke-width="'+w+'" '+(dash?'stroke-dasharray="3 2" ':'')+'opacity=".75"/>'};
+  if($('#mpHomes').checked&&S.drivers.length){
+    const c={};S.drivers.forEach(d=>c[d.homePlaceId]=(c[d.homePlaceId]||0)+1);
+    for(const id in c){const p=S.pl[id];if(p)h+='<circle cx="'+X(p)+'" cy="'+Y(p)+'" r="'+(3+Math.sqrt(c[id])*1.6)+'" fill="currentColor" opacity=".12"><title>'+esc(p.name)+': '+c[id]+' drivers</title></circle>'}
+  }
+  if(S.snap){
+    S.snap.openRequests.forEach(r=>r.legs.forEach(l=>line(l.pickup.placeId,l.delivery.placeId,'#888',true,1)));
+    const col={waiting:'#dc2626',booked:'#d97706',moving:'#2563eb'};
+    S.snap.orders.forEach(o=>{if(!col[o.status])return;o.legs.forEach((l,i)=>{if(o.deliveredAt[i]==null)line(l.pickup.placeId,l.delivery.placeId,col[o.status],false,1.6)})});
+  }
+  P.forEach(p=>{h+='<circle cx="'+X(p)+'" cy="'+Y(p)+'" r="1.8" fill="currentColor" opacity=".55"><title>'+esc(p.name)+'</title></circle>';
+    if($('#mpLabels').checked)h+='<text x="'+(X(p)+3)+'" y="'+(Y(p)-2)+'">'+esc(p.name)+'</text>'});
+  if(S.snap)S.snap.driverPositions.forEach((d,i)=>{const p=S.pl[d.placeId];if(p)h+='<circle cx="'+(X(p)+(i%3)*2-2)+'" cy="'+(Y(p)+3)+'" r="3" fill="#16a34a"><title>'+esc(d.driverId)+' on '+esc(d.gigId)+'</title></circle>'});
+  svg.innerHTML=h;svg.style.color='var(--ink)';
+}
+function legLine(l){
+  const w=l.pickup.window,f=[];
+  if(l.car.premium)f.push('premium');if(l.car.electric)f.push('EV '+(l.car.chargePercent!=null?l.car.chargePercent+'%':''));
+  if(l.pickup.privateAddress)f.push('private pickup');if(l.delivery.privateAddress)f.push('private delivery');
+  const hrs=h=>h?(Math.floor(h.opens/60)+':'+String(h.opens%60).padStart(2,'0')+'–'+Math.floor(h.closes/60)+':'+String(h.closes%60).padStart(2,'0')):'';
+  return '<div class="leg">🚗 <b>'+esc(pn(l.pickup.placeId))+' → '+esc(pn(l.delivery.placeId))+'</b> <span class="mute">pickup '+fmtT(w.from)+' – '+fmtT(w.to)+(l.pickup.hours?' · site '+hrs(l.pickup.hours):'')+(l.delivery.hours?' · delivery site '+hrs(l.delivery.hours):'')+'</span> '+f.map(x=>'<span class="tag">'+esc(x)+'</span>').join(' ')+'</div>';
+}
+function renderReq(){
+  const rs=S.snap?S.snap.openRequests:[];
+  let h='<div class="row mute">Open price requests (answer before “respond by”; decline by quoting far above list). Up to level 3 every quote wins and prices are ignored.</div>';
+  if(!rs.length)h+='<p class="mute">None open now. Try “Next price request”.</p>';
+  h+=rs.map(r=>'<div class="card" data-rid="'+esc(r.id)+'"><div class="row"><b>'+esc(r.id)+'</b><span class="tag">'+esc(r.dealerId)+'</span><span class="mute">respond by '+fmtT(r.respondBy)+' ('+(r.respondBy-S.snap.now)+' min left)</span><span class="sp"></span>typical driver fee <b>'+eur(r.referenceFeeCents)+'</b></div>'
+    +r.legs.map(legLine).join('')+(r.note?'<div class="note">📝 ['+esc(r.note.language)+'] '+esc(r.note.text)+'</div>':'')
+    +'<table><tr><th>Option</th><th>Deadline</th><th>List</th><th>Your quote (€)</th></tr>'
+    +r.options.map(o=>'<tr><td>'+o.kind+'</td><td>'+fmtT(o.deadline)+'</td><td>'+eur(o.listPriceCents)+'</td><td><input type="number" step="0.01" min="0.01" data-opt="'+o.kind+'" data-list="'+o.listPriceCents+'" value="'+(o.listPriceCents/100).toFixed(2)+'"></td></tr>').join('')+'</table>'
+    +'<div class="row"><button class="pri" data-act="sendQuote">Send quote</button>×<input type="number" step="0.01" value="1.00" style="width:64px" data-mult> <button data-act="applyMult">Apply to inputs</button><button data-act="declineReq">Decline (3× list)</button><span class="mute">Leave an input empty to skip that option.</span></div></div>').join('');
+  $('#tab-req').innerHTML=h;
+}
+function orderGigs(o){return S.snap.gigs.filter(g=>g.stops.some(s=>s.orderId===o.id))}
+function renderOrders(){
+  const os=S.snap?S.snap.orders:[];
+  if(!os.length){$('#tab-ord').innerHTML='<p class="mute">No orders yet.</p>';return}
+  const stc={waiting:'bad',booked:'warn',moving:'',delivered:'good',cancelled:'mute'};
+  $('#tab-ord').innerHTML='<div class="scroll"><table><tr><th>Order</th><th>Route</th><th>Option / price</th><th>Deadline</th><th>Last pickup</th><th>Status</th><th>Gigs</th><th></th></tr>'
+   +os.slice().reverse().map(o=>{const gs=orderGigs(o);return '<tr><td>'+esc(o.id)+'<br><span class="mute">'+esc(o.dealerId)+'</span></td><td>'+esc(routeOf(o.legs))+'</td><td>'+o.option+'<br>'+eur(o.priceCents)+'</td><td>'+fmtT(o.deadline)+'</td><td>'+fmtT(o.lastPickupAt)+'</td><td class="'+(stc[o.status]||'')+'">'+o.status+'<br><span class="mute">'+o.deliveredAt.map(d=>d==null?'—':fmtT(d)).join(' / ')+'</span></td><td>'+gs.map(g=>esc(g.id)+' <span class="mute">'+g.status+'</span>').join('<br>')+'</td><td>'+(o.status!=='delivered'&&o.status!=='cancelled'?'<button data-act="composeFor" data-oid="'+esc(o.id)+'">Post gig…</button>':'')+'</td></tr>'}).join('')+'</table></div>';
+}
+function composerHTML(){
+  const os=(S.snap?S.snap.orders:[]).filter(o=>o.status!=='delivered'&&o.status!=='cancelled');
+  if(!os.length)return '<div class="box"><b>Gig composer</b><p class="mute">No open orders to post for.</p></div>';
+  const cur=S.composer&&os.find(o=>o.id===S.composer)||os[os.length-1];S.composer=cur.id;
+  const base=refFee(cur)/100;
+  return '<div class="box" id="composer"><h3>Gig composer</h3><div class="row"><select id="cmpOrder">'+os.map(o=>'<option value="'+esc(o.id)+'"'+(o.id===cur.id?' selected':'')+'>'+esc(o.id)+' · '+esc(routeOf(o.legs))+'</option>').join('')+'</select></div>'
+   +'<div class="row">Start fee € <input id="cmpFee" type="number" step="1" value="'+base.toFixed(2)+'"> max × <input id="cmpMax" type="number" step="0.1" value="1.5" style="width:60px"> +% / step <input id="cmpFrac" type="number" step="1" value="10" style="width:56px"> step min <input id="cmpStep" type="number" value="60" style="width:56px"></div>'
+   +'<div class="row"><label class="ck"><input type="checkbox" id="cmpExp">experienced only</label><label class="ck"><input type="checkbox" id="cmpMan">manual licence only</label><label class="ck"><input type="checkbox" id="cmpPl">withPlates on pickups</label><label class="ck"><input type="checkbox" id="cmpComb">one gig for all legs</label><button class="pri" data-act="postGig">Post</button></div>'
+   +'<div class="mute">Start fee defaults to the dealer’s typical fee (a hint only; at levels 7–8 it often finds no driver). Fees never fall within a gig’s schedule.</div></div>';
+}
+function renderGigs(){
+  const s=S.snap;if(!s){$('#tab-gig').innerHTML='';return}
+  const keep=$('#gigAll')?$('#gigAll').checked:false;
+  const gs=s.gigs.filter(g=>keep||g.status==='open'||g.status==='booked'||g.status==='working').slice().reverse();
+  $('#tab-gig').innerHTML=composerHTML()+'<div class="row"><label class="ck"><input type="checkbox" id="gigAll" '+(keep?'checked':'')+'>show done / withdrawn too</label><span class="mute">'+gs.length+' shown</span></div>'
+   +'<div class="scroll"><table><tr><th>Gig</th><th>Stops</th><th>Status</th><th>Fee now</th><th>Schedule</th><th></th></tr>'
+   +gs.map(g=>{const stops=g.stops.map(x=>x.kind[0].toUpperCase()+':'+x.orderId+'/'+x.leg).join(' ');
+     const sched=g.schedule.map(x=>fmtT(x.at).slice(4)+' '+(x.feeCents/100).toFixed(0)).join(' → ');
+     const b=[];
+     if(g.status==='open'){b.push('<button data-act="reprice" data-gid="'+esc(g.id)+'">Reprice</button>','<button data-act="withdraw" data-gid="'+esc(g.id)+'">Withdraw</button>','<button data-act="offer" data-gid="'+esc(g.id)+'">Offer…</button>')}
+     if(g.status==='booked')b.push('<button data-act="release" data-gid="'+esc(g.id)+'">Release</button>');
+     return '<tr><td>'+esc(g.id)+'<br><span class="mute">posted '+fmtT(g.postedAt)+'</span></td><td style="font-size:12px">'+esc(stops)+'</td><td>'+g.status+(g.driverId?'<br><span class="mute">'+esc(g.driverId)+'</span>':'')+'</td><td>'+eur(g.feeCents)+'</td><td class="mute" style="font-size:11px;max-width:220px">'+esc(sched)+'</td><td>'+b.join(' ')+'</td></tr>'}).join('')+'</table></div>';
+}
+function renderDrivers(){
+  if(!S.drivers.length){$('#tab-drv').innerHTML='<p class="mute">No drivers loaded.</p>';return}
+  const c={};S.drivers.forEach(d=>c[d.homePlaceId]=(c[d.homePlaceId]||0)+1);
+  const top=Object.entries(c).sort((a,b)=>b[1]-a[1]);
+  const busy=new Set(S.snap?S.snap.driverPositions.map(d=>d.driverId):[]);
+  $('#tab-drv').innerHTML='<div class="row"><b>'+S.drivers.length+' drivers</b> · homes: '+top.map(([p,n])=>esc(pn(p))+' '+n).join(', ')+'</div><div class="scroll"><table><tr><th>Driver</th><th>Home</th><th>Rating</th><th>Licence</th><th>Gigs done</th><th>Drops</th><th></th></tr>'
+   +S.drivers.slice().sort((a,b)=>b.completedGigs-a.completedGigs).map(d=>'<tr><td>'+esc(d.id)+'</td><td>'+esc(pn(d.homePlaceId))+'</td><td>'+d.rating.toFixed(1)+'</td><td>'+d.licence+'</td><td>'+d.completedGigs+'</td><td>'+d.drops+'</td><td>'+(busy.has(d.id)?'<span class="good">on your gig</span>':'')+'</td></tr>').join('')+'</table></div>';
+}
+const EV_CLS={delivered:'good',order_won:'good',gig_booked:'good',visit_failed:'bad',no_show:'bad',gig_dropped:'bad',gig_expired:'bad',order_lost:'mute',deadline_close:'warn',driver_late:'warn',order_changed:'warn',order_cancelled:'warn',gig_viewed:'mute',ledger:'mute'};
+function describe(e){switch(e.kind){
+ case 'price_request':return e.request.id+' '+e.request.dealerId+' '+routeOf(e.request.legs)+' · typical '+eur(e.request.referenceFeeCents)+(e.request.note?' · 📝 '+e.request.note.text:'');
+ case 'order_won':return e.order.id+' '+routeOf(e.order.legs)+' '+e.order.option+' '+eur(e.order.priceCents)+' by '+fmtT(e.order.deadline);
+ case 'order_lost':return e.requestId;
+ case 'order_changed':return e.order.id+': '+e.message.text+' (deadline '+fmtT(e.order.deadline)+')';
+ case 'order_cancelled':return e.orderId+' · '+e.gigs.map(g=>g.gigId+':'+g.outcome).join(', ');
+ case 'release':return e.orderId+' leg '+e.leg;
+ case 'gig_viewed':case 'gig_started':case 'gig_dropped':case 'no_show':return e.gigId+' '+e.driverId;
+ case 'gig_booked':return e.gigId+' '+e.driverId+' '+eur(e.feeCents);
+ case 'driver_late':return e.gigId+' '+e.driverId+' pickup '+fmtT(e.pickupAt);
+ case 'gig_expired':return e.gigId;
+ case 'offer_answered':return e.gigId+' '+e.driverId+' '+e.answer;
+ case 'picked_up':case 'delivered':return e.orderId+'/'+e.leg+' @ '+pn(e.placeId)+' ('+e.gigId+')';
+ case 'visit_failed':return e.orderId+'/'+e.leg+' '+e.reason+' ('+e.gigId+')';
+ case 'deadline_close':return e.orderId+' last pickup '+fmtT(e.lastPickupAt);
+ case 'forecast':return e.text+' '+fmtT(e.from)+'–'+fmtT(e.to)+' '+e.placeIds.map(pn).join(', ');
+ case 'ledger':return e.line.kind+' '+eur(e.line.cents)+' '+(e.line.orderId||'')+' '+(e.line.gigId||'')+' '+(e.line.detail||'');
+ default:return JSON.stringify(e)}}
+function renderEvents(){
+  const kinds=[...new Set(S.events.map(e=>e.kind))].sort();
+  const cur=$('#evKind')?$('#evKind').value:'*';const hide=$('#evHide')?$('#evHide').checked:true;
+  let evs=S.events.filter(e=>(cur==='*'||e.kind===cur)&&!(hide&&cur==='*'&&(e.kind==='gig_viewed'||e.kind==='ledger')));
+  const total=evs.length;evs=evs.slice(-400).reverse();
+  $('#tab-evt').innerHTML='<div class="row"><select id="evKind"><option value="*">all kinds</option>'+kinds.map(k=>'<option'+(k===cur?' selected':'')+'>'+k+'</option>').join('')+'</select><label class="ck"><input type="checkbox" id="evHide" '+(hide?'checked':'')+'>hide views &amp; ledger lines</label><span class="mute">'+total+' events (newest first, max 400)</span></div><div class="scroll">'
+   +evs.map(e=>'<div class="ev"><span class="mute">'+fmtT(e.at)+'</span> <b class="'+(EV_CLS[e.kind]||'')+'">'+e.kind+'</b> '+esc(describe(e))+'</div>').join('')+'</div>';
+}
+function renderMoney(){
+  const L=S.events.filter(e=>e.kind==='ledger').map(e=>e.line);
+  if(!L.length){$('#tab-mon').innerHTML='<p class="mute">No ledger lines yet.</p>';return}
+  const by={},ord={};
+  L.forEach(l=>{(by[l.kind]=by[l.kind]||{n:0,c:0}).n++;by[l.kind].c+=l.cents;if(l.orderId)ord[l.orderId]=(ord[l.orderId]||0)+l.cents});
+  const net=L.reduce((a,l)=>a+l.cents,0);
+  const worst=Object.entries(ord).sort((a,b)=>a[1]-b[1]).slice(0,12);
+  $('#tab-mon').innerHTML='<div class="row"><b>Where the money goes</b> <span class="mute">(sum of ledger lines = margin; driver fees are not always tied to an order id)</span></div><table><tr><th>Line kind</th><th>Count</th><th>Total</th></tr>'
+   +Object.entries(by).sort((a,b)=>a[1].c-b[1].c).map(([k,v])=>'<tr><td>'+k+'</td><td>'+v.n+'</td><td class="'+(v.c<0?'bad':'good')+'">'+eur(v.c)+'</td></tr>').join('')
+   +'<tr><td><b>Net</b></td><td></td><td><b class="'+(net<0?'bad':'good')+'">'+eur(net)+'</b></td></tr></table>'
+   +'<div class="row" style="margin-top:10px"><b>Worst orders by lines tied to them</b></div><table>'+worst.map(([id,c])=>'<tr><td>'+esc(id)+'</td><td class="'+(c<0?'bad':'good')+'">'+eur(c)+'</td></tr>').join('')+'</table>';
+}
+function renderConsole(){
+  const keep=$('#conActs')?$('#conActs').value:'[\n  {"type":"quote","requestId":"REQ_ID","prices":{"next_day":15000}}\n]';
+  const keepA=$('#conAdv')?$('#conAdv').value:'{"by":30}';
+  const out=$('#conOut')?$('#conOut').textContent:'';
+  $('#tab-con').innerHTML='<div class="row"><b>Raw actions</b> <span class="mute">JSON array, sent to POST /actions</span></div><textarea id="conActs" rows="7">'+esc(keep)+'</textarea><div class="row"><button class="pri" data-act="rawActs">Send actions</button></div>'
+   +'<div class="row"><b>Raw advance</b> <span class="mute">e.g. {"by":30} · {"to":1500} · {"untilEvent":["price_request"],"max":1500}</span></div><textarea id="conAdv" rows="2">'+esc(keepA)+'</textarea><div class="row"><button data-act="rawAdv">Advance</button></div>'
+   +'<pre id="conOut">'+esc(out)+'</pre><div class="row"><b>Recent requests</b></div><div class="mute" style="font-size:12px">'+S.reqLog.slice(0,25).map(r=>esc(r.t+'  '+r.method+' '+r.path+'  → '+r.status+'  '+r.ms+'ms')).join('<br>')+'</div>';
+}
+async function renderBoard(level){
+  level=level||($('#bdLevel')?$('#bdLevel').value:'8');
+  $('#tab-board').innerHTML='<div class="row">Level <select id="bdLevel">'+[1,2,3,4,5,6,7,8].map(l=>'<option'+(String(l)===String(level)?' selected':'')+'>'+l+'</option>').join('')+'</select><button data-act="loadBoard">Load</button><span class="mute">Practice rankings (public, same five secret worlds for every team)</span></div><div id="bdOut" class="mute">Loading…</div>';
+  try{const b=await api('GET','/v1/leaderboards/practice?level='+level);
+    const season=(t,s)=>!s?'':'<h3>'+t+': '+esc(s.name)+'</h3><div class="scroll" style="max-height:30vh"><table><tr><th>#</th><th>Team</th><th>Played</th><th>Ranked</th><th>Margin</th><th>On time</th></tr>'
+      +s.teams.slice(0,25).map(x=>'<tr><td>'+(x.rank==null?'–':x.rank)+'</td><td>'+esc(x.name||x.team)+'</td><td>'+x.played+'/5</td><td>'+(x.ranked?'✓':'')+'</td><td>'+(x.marginCents==null?'':eur(x.marginCents))+'</td><td>'+(x.onTimeShare==null?'':(x.onTimeShare*100).toFixed(1)+'%')+'</td></tr>').join('')+'</table></div>';
+    $('#bdOut').innerHTML=(season('Current',b.current)+season('Previous',b.previous))||'No ranking round yet at this level.';
+  }catch(e){$('#bdOut').textContent=e.message}
+}
+
+/* ---------- events (clicks) ---------- */
+function cardOf(el){return el.closest('.card')}
+const H={
+  adv:d=>step({by:+d.by}),
+  advEvt:d=>{const now=S.snap.now;step({untilEvent:d.k==='attn'?ATTN:[d.k],max:Math.min(S.snap.endsAt,now+1440)})},
+  advEnd:()=>step({to:S.snap.endsAt}),
+  applyMult:(d,el)=>{const c=cardOf(el),m=parseFloat(c.querySelector('[data-mult]').value)||1;c.querySelectorAll('[data-opt]').forEach(i=>i.value=(Math.round(i.dataset.list*m)/100).toFixed(2))},
+  sendQuote:(d,el)=>{const c=cardOf(el),prices={};
+    c.querySelectorAll('[data-opt]').forEach(i=>{if(i.value!=='')prices[i.dataset.opt]=Math.round(parseFloat(i.value)*100)});
+    if(!Object.keys(prices).length)return toast('Enter at least one price');
+    act([{type:'quote',requestId:c.dataset.rid,prices}])},
+  declineReq:(d,el)=>{const c=cardOf(el),prices={};c.querySelectorAll('[data-opt]').forEach(i=>prices[i.dataset.opt]=Math.round(i.dataset.list*3));act([{type:'quote',requestId:c.dataset.rid,prices}])},
+  composeFor:d=>{S.composer=d.oid;tab('gig');renderGigs()},
+  postGig:()=>{
+    const o=S.snap.orders.find(x=>x.id===$('#cmpOrder').value);if(!o)return;
+    const sched=ramp(Math.round(parseFloat($('#cmpFee').value)*100),S.snap.now,parseFloat($('#cmpMax').value)||1,(parseFloat($('#cmpFrac').value)||0)/100||0.0001,parseInt($('#cmpStep').value)||60);
+    act(buildGigs(o,{schedule:sched,experienced:$('#cmpExp').checked,manual:$('#cmpMan').checked,plates:$('#cmpPl').checked,combine:$('#cmpComb').checked}));
+  },
+  reprice:d=>{const v=prompt('New constant fee in € (a gig that no driver has booked; fees never fall inside one schedule, but a reprice replaces it):');if(!v)return;
+    act([{type:'reprice',gigId:d.gid,schedule:[{at:S.snap.now,feeCents:Math.round(parseFloat(v)*100)}]}])},
+  withdraw:d=>act([{type:'withdraw',gigId:d.gid}]),
+  release:d=>{if(confirm('Release the driver of '+d.gid+'? This can cost a release fee (free after driver_late).'))act([{type:'release',gigId:d.gid}])},
+  offer:d=>{const dr=prompt('Driver id for the direct offer (see Drivers tab):');if(!dr)return;const f=prompt('Fee in €:');if(!f)return;
+    act([{type:'offer',gigId:d.gid,driverId:dr.trim(),feeCents:Math.round(parseFloat(f)*100)}])},
+  rawActs:async()=>{try{const a=JSON.parse($('#conActs').value);const r=await act(a);$('#conOut').textContent=JSON.stringify(r,null,2)}catch(e){toast(e.message)}},
+  rawAdv:async()=>{try{const b=JSON.parse($('#conAdv').value);const r=await advance(b);await refreshSnap();renderAll();$('#conOut').textContent=JSON.stringify({now:r.now,events:r.events.length,results:r.results},null,2)}catch(e){toast(e.message)}},
+  loadBoard:()=>renderBoard()
+};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b&&H[b.dataset.act])H[b.dataset.act](b.dataset,b)});
+function tab(name){$$('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===name));$$('.tab').forEach(t=>t.classList.toggle('on',t.id==='tab-'+name));if(name==='board'&&!$('#bdOut'))renderBoard('8')}
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b)tab(b.dataset.tab)});
+document.addEventListener('change',e=>{
+  if(e.target.id==='cmpOrder'){S.composer=e.target.value;renderGigs()}
+  if(e.target.id==='evKind'||e.target.id==='evHide')renderEvents();
+  if(e.target.id==='gigAll')renderGigs();
+  if(e.target.id==='mpHomes'||e.target.id==='mpLabels')renderMap();
+  if(e.target.id==='bdLevel')renderBoard(e.target.value);
+});
+$('#worldSel').addEventListener('change',e=>{S.auto=false;loadWorld(e.target.value)});
+$('#bRefresh').onclick=()=>reload().catch(e=>toast(e.message));
+$('#apGo').onclick=autoLoop;
+$('#bCreate').onclick=async()=>{
+  const level=+$('#nwLevel').value,seed=$('#nwSeed').value.trim(),board=$('#nwBoard').checked;
+  const body={level};if(board)body.board=true;else if(seed)body.seed=seed;
+  try{const r=await api('POST','/v1/worlds',body);await loadWorlds(r.worldId);toast('Created '+r.worldId)}catch(e){toast(e.message,8000)}
+};
+$('#bFork').onclick=async()=>{if(!S.wid)return;try{const r=await wapi('POST','/fork');await loadWorlds(r.worldId);toast('Forked into '+r.worldId)}catch(e){toast(e.message,8000)}};
+$('#bDelete').onclick=async()=>{if(!S.wid)return;const w=S.worlds.find(x=>x.worldId===S.wid);
+  if(!confirm(w&&w.boardRun&&!w.ended?'This is a RANKING RUN. Deleting it does NOT remove it: it runs to the end without you and counts. Delete anyway?':'Delete this world?'))return;
+  S.auto=false;try{await wapi('DELETE','');S.wid=null;await loadWorlds()}catch(e){toast(e.message,8000)}};
+$('#bReveal').onclick=async()=>{if(!S.wid)return;try{const r=await wapi('GET','/reveal');
+  const won=r.requests.filter(x=>x.outcome==='won').length,lost=r.requests.filter(x=>x.outcome==='lost').length,un=r.requests.filter(x=>x.outcome==='unquoted').length;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(r,null,1)],{type:'application/json'}));a.download='reveal-'+S.wid+'.json';a.click();
+  toast('Reveal downloaded: '+r.requests.length+' requests ('+won+' won, '+lost+' lost, '+un+' unquoted), '+r.orders.length+' orders, '+r.views.length+' gig views',8000)}catch(e){toast(e.message,8000)}};
+init();
+</script>
+</body>
+</html>
